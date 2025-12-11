@@ -11,7 +11,7 @@ REM Check if .env exists
 if exist ".env" (
     echo ✅ .env file found
     
-    findstr /C:"HERE_API_KEY=" .env >nul
+    findstr /C:"HERE_API_KEY=" .env | findstr /V "your_here_api_key_here" >nul
     if %ERRORLEVEL% EQU 0 (
         echo ✅ HERE_API_KEY is set
     ) else (
@@ -19,7 +19,7 @@ if exist ".env" (
         echo    Get one at: https://developer.here.com/
     )
     
-    findstr /C:"STORAGE_URL=" .env >nul
+    findstr /C:"STORAGE_URL=" .env | findstr /V "your-project.supabase.co" >nul
     if %ERRORLEVEL% EQU 0 (
         echo ✅ STORAGE_URL is set
     ) else (
@@ -27,7 +27,7 @@ if exist ".env" (
         echo    Create a Supabase project at: https://supabase.com/
     )
     
-    findstr /C:"STORAGE_KEY=" .env >nul
+    findstr /C:"STORAGE_KEY=" .env | findstr /V "your_supabase_anon_key" >nul
     if %ERRORLEVEL% EQU 0 (
         echo ✅ STORAGE_KEY is set
     ) else (
