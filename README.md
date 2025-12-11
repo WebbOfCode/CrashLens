@@ -4,6 +4,8 @@
 
 CrashLens is a cloud-native traffic intelligence system built for real-world deployment. Unlike traditional solutions, it uses cloud storage (Supabase/Firebase) instead of local databases, making it scalable, maintainable, and production-ready.
 
+> **🎯 New to deployment?** Check out our **[Free Platform Deployment Guide](./FREE_PLATFORM_GUIDE.md)** to launch CrashLens on 100% free infrastructure in under 30 minutes!
+
 ## 🌟 Features
 
 - **Real-Time Traffic Monitoring**: Live incident tracking via HERE Traffic API
@@ -35,6 +37,8 @@ crashlens/
 ```
 
 ## 🚀 Quick Start
+
+> **🆓 Want to deploy on a free platform?** Check out our **[Free Platform Deployment Guide](./FREE_PLATFORM_GUIDE.md)** for step-by-step instructions to launch CrashLens on Render, Railway, or Vercel at **zero cost**!
 
 ### Prerequisites
 
@@ -192,7 +196,28 @@ GET /api/analytics/summary
 
 ## 🚢 Production Deployment
 
-### Deploy to Cloud Platform
+### 🆓 Free Platform Options (Recommended)
+
+Deploy CrashLens completely free! See **[FREE_PLATFORM_GUIDE.md](./FREE_PLATFORM_GUIDE.md)** for detailed step-by-step instructions.
+
+**Quick Free Options:**
+
+1. **Render (Easiest)**
+   - Both frontend and backend on one platform
+   - No credit card required
+   - [Free Platform Guide →](./FREE_PLATFORM_GUIDE.md#option-1-render-recommended-for-beginners)
+
+2. **Railway (Developer-Friendly)**
+   - $5 free credit monthly
+   - Simple CLI deployment
+   - [Free Platform Guide →](./FREE_PLATFORM_GUIDE.md#option-2-railway-free-5-credit)
+
+3. **Vercel + Render (Best Performance)**
+   - Vercel for frontend (CDN)
+   - Render for backend
+   - [Free Platform Guide →](./FREE_PLATFORM_GUIDE.md#option-3-vercel--render-combo)
+
+### Other Deployment Options
 
 #### Vercel (Frontend)
 ```bash
@@ -212,6 +237,8 @@ railway up
 # Configure environment variables in dashboard
 # Deploy via App Platform
 ```
+
+For advanced deployment configurations, see [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ### Environment Setup
 
