@@ -14,6 +14,7 @@ import os
 from dotenv import load_dotenv
 import redis.asyncio as redis
 import json
+import math
 from contextlib import asynccontextmanager
 
 load_dotenv()
@@ -97,31 +98,37 @@ class Incident(BaseModel):
     start_time: datetime
     end_time: Optional[datetime]
     road_name: Optional[str]
+    location_name: Optional[str]
     length: Optional[float]
 
 
 # Storage abstraction layer
 class StorageAdapter:
     """Abstract storage layer for cloud providers"""
+
+    def _is_configured(self) -> bool:
+        return bool(STORAGE_URL and STORAGE_KEY and STORAGE_TYPE in {"supabase", "firebase"})
     
     async def save_incident(self, incident: Dict[str, Any]) -> bool:
         """Save incident to cloud storage"""
+        if not self._is_configured():
+            return True  # skip silently when storage not configured
         if STORAGE_TYPE == "supabase":
             return await self._save_to_supabase(incident)
-        elif STORAGE_TYPE == "firebase":
+        if STORAGE_TYPE == "firebase":
             return await self._save_to_firebase(incident)
-        else:
-            # In-memory fallback (not production-ready)
-            return True
+        # In-memory fallback (not production-ready)
+        return True
     
     async def get_incidents(self, filters: Dict[str, Any]) -> List[Dict]:
         """Retrieve incidents from cloud storage"""
+        if not self._is_configured():
+            return []
         if STORAGE_TYPE == "supabase":
             return await self._get_from_supabase(filters)
-        elif STORAGE_TYPE == "firebase":
+        if STORAGE_TYPE == "firebase":
             return await self._get_from_firebase(filters)
-        else:
-            return []
+        return []
     
     async def _save_to_supabase(self, incident: Dict[str, Any]) -> bool:
         """Save to Supabase"""
@@ -215,7 +222,8 @@ async def get_incidents(
     if len(parts) != 4:
         raise HTTPException(status_code=400, detail="Invalid bbox. Expected 'minLon,minLat,maxLon,maxLat'")
 
-    cache_key = f"incidents:{bbox}:{criticality}"
+    criticality_filter = criticality
+    cache_key = f"incidents:{bbox}:{criticality_filter}"
     
     # Check cache first
     global redis_client
@@ -237,8 +245,8 @@ async def get_incidents(
                 "in": f"bbox:{bbox}",
                 "locationReferencing": "shape"
             }
-            if criticality:
-                params["criticality"] = criticality
+            if criticality_filter:
+                params["criticality"] = criticality_filter
             
             response = await client.get(
                 f"{HERE_API_BASE}/incidents",
@@ -249,53 +257,91 @@ async def get_incidents(
             data = response.json()
         
         # Transform HERE data to our format
+        def _extract_text(value: Any) -> Optional[str]:
+            """Extract human-readable text from HERE API fields with multiple shapes."""
+            if isinstance(value, dict):
+                return value.get("value") or value.get("label") or value.get("name")
+            if isinstance(value, list):
+                for candidate in value:
+                    text = _extract_text(candidate)
+                    if text:
+                        return text
+            if isinstance(value, str):
+                return value
+            return None
+
         incidents = []
         for item in data.get("results", []):
-            # Extract coordinates from location.shape.links
-            lat, lng = 0, 0
+            location = item.get("location", {}) or {}
+            details = item.get("incidentDetails", {}) or {}
+
+            # Extract coordinates with fallbacks (shape -> displayPoint -> origin)
+            lat, lng = None, None
             try:
-                location = item.get("location", {})
                 shape = location.get("shape", {})
                 links = shape.get("links", [])
-                if len(links) > 0:
+                if links:
                     points = links[0].get("points", [])
-                    if len(points) > 0:
-                        lat = points[0].get("lat", 0)
-                        lng = points[0].get("lng", 0)
+                    if points:
+                        lat = points[0].get("lat")
+                        lng = points[0].get("lng")
             except (IndexError, TypeError, KeyError):
                 pass
-            
-            # Extract from incidentDetails (nested object)
-            details = item.get("incidentDetails", {})
-            
-            # Extract criticality - it's a string in incidentDetails, not a dict
+
+            if lat is None or lng is None:
+                display_point = location.get("displayPoint", {})
+                lat = lat if lat is not None else display_point.get("lat")
+                lng = lng if lng is not None else display_point.get("lng")
+
+            if lat is None or lng is None:
+                origin = location.get("origin", {})
+                lat = lat if lat is not None else origin.get("lat")
+                lng = lng if lng is not None else origin.get("lng")
+
+            lat = lat if lat is not None else 0
+            lng = lng if lng is not None else 0
+
+            # Extract descriptive fields
             criticality_raw = details.get("criticality", "minor")
-            criticality = criticality_raw.lower() if isinstance(criticality_raw, str) else "minor"
-            
-            # Extract type and description from incidentDetails
-            incident_type = details.get("type", "unknown")
-            description_obj = details.get("description", {})
-            description = description_obj.get("value", "") if isinstance(description_obj, dict) else str(description_obj)
-            
-            # Extract timestamps from incidentDetails
+            criticality_label = criticality_raw.lower() if isinstance(criticality_raw, str) else "minor"
+
+            incident_type = details.get("type", item.get("type", "unknown"))
+            description = _extract_text(details.get("description")) or _extract_text(item.get("description")) or ""
+
             start_time = details.get("startTime", datetime.now(timezone.utc).isoformat())
             end_time = details.get("endTime", "")
-            
-            # Extract location info from location
-            location = item.get("location", {})
+
             length = location.get("length", 0)
-            
+
+            # Location naming: prefer explicit road or description, fallback to coordinates string
+            location_name = (
+                _extract_text(location.get("description"))
+                or _extract_text(location.get("displayPoint", {}).get("description"))
+                or _extract_text(details.get("description"))
+            )
+
+            road_name = (
+                _extract_text(location.get("roadName"))
+                or _extract_text(location.get("primaryLocation", {}).get("roadName"))
+                or _extract_text(location.get("primaryLocation", {}).get("address"))
+                or location_name
+            )
+
+            severity_map = {"critical": 3, "major": 2, "minor": 1, "low": 0}
+            severity = severity_map.get(criticality_label, 0)
+
             incident_data = {
-                "id": details.get("id", ""),
+                "id": details.get("id", item.get("incidentId", "")),
                 "type": incident_type,
                 "description": description,
                 "latitude": lat,
                 "longitude": lng,
-                "severity": 0,  # HERE API doesn't provide this directly
-                "criticality": criticality,
+                "severity": severity,
+                "criticality": criticality_label,
                 "start_time": start_time,
                 "end_time": end_time,
-                "road_name": "",  # HERE API doesn't include road name in this response
+                "road_name": road_name,
+                "location_name": location_name,
                 "length": length
             }
             try:
@@ -417,20 +463,43 @@ async def analyze_risk(request: RiskAnalysisRequest):
 
 
 @app.get("/api/analytics/summary")
-async def get_analytics_summary():
+async def get_analytics_summary(bbox: Optional[str] = None):
     """
-    Get summary analytics from stored incidents
+    Get summary analytics.
+
+    Priority:
+    1) Use configured storage if available.
+    2) Fallback to live HERE incidents for provided bbox (or ANALYTICS_BBOX env).
+    3) Return empty aggregates instead of 500s.
     """
-    # Retrieve recent incidents from cloud storage
-    filters = {
-        "start_time": f"gte.{(datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}"
-    }
-    incidents = await storage.get_incidents(filters)
-    
+
+    incidents: List[Dict[str, Any]] = []
+
+    # Try storage first (if configured)
+    try:
+        filters = {
+            "start_time": f"gte.{(datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}"
+        }
+        incidents = await storage.get_incidents(filters)
+    except Exception as exc:
+        print(f"⚠ Analytics storage fetch failed: {exc}")
+        incidents = []
+
+    # Fallback to live HERE API when storage is empty/missing
+    if not incidents:
+        fallback_bbox = bbox or os.getenv("ANALYTICS_BBOX")
+        if fallback_bbox:
+            try:
+                live_incidents = await get_incidents(fallback_bbox)  # reuse existing handler
+                incidents = [i.dict() if hasattr(i, "dict") else i for i in live_incidents]
+            except Exception as exc:
+                print(f"⚠ Analytics live fallback failed: {exc}")
+                incidents = []
+
     # Calculate statistics
     total_incidents = len(incidents)
-    by_severity = {}
-    by_type = {}
+    by_severity: Dict[str, int] = {}
+    by_type: Dict[str, int] = {}
     
     for incident in incidents:
         severity = incident.get("criticality", "unknown")
@@ -444,7 +513,8 @@ async def get_analytics_summary():
         "total_incidents": total_incidents,
         "by_severity": by_severity,
         "by_type": by_type,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": "storage" if incidents and len(incidents) > 0 else "live",
     }
 
 

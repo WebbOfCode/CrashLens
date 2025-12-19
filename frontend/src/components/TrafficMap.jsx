@@ -88,8 +88,16 @@ const TrafficMap = React.forwardRef(({
                   </div>
                   <h3 className="font-semibold text-sm mb-1">{incident.type}</h3>
                   <p className="text-xs text-gray-600 mb-2">{incident.description}</p>
+                  {(incident.location_name || incident.road_name) && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                      <span>📍</span>
+                      <span className="font-medium truncate">
+                        {incident.location_name || incident.road_name}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                    <span>📍</span>
+                    <span>🧭</span>
                     <span className="font-medium">({incident.latitude?.toFixed(4)}, {incident.longitude?.toFixed(4)})</span>
                   </div>
                   {incident.length && (

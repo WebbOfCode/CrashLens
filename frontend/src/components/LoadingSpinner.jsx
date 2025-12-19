@@ -12,7 +12,7 @@ export function LoadingOverlay({ message = 'Loading...' }) {
     <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
       <div className="text-center">
         <LoadingSpinner size={40} className="mx-auto mb-2 text-primary-600" />
-        <p className="text-gray-600">{message}</p>
+        <p className="text-gray-800">{message}</p>
       </div>
     </div>
   );

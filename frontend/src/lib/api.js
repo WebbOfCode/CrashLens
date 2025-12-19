@@ -60,8 +60,9 @@ export const apiService = {
   },
 
   // Analytics
-  getAnalyticsSummary: () => {
-    return api.get('/api/analytics/summary');
+  getAnalyticsSummary: (bbox) => {
+    const params = bbox ? { bbox } : {};
+    return api.get('/api/analytics/summary', { params });
   },
 };
 

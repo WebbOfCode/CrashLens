@@ -18,7 +18,6 @@ export default function Dashboard() {
 
   const { data: incidents = [], isLoading, error, refetch } = useIncidents(bbox, selectedCriticality);
 
-  // Load initial incidents with default map bounds
   React.useEffect(() => {
     if (mapRef.current && !bbox) {
       const bounds = mapRef.current.getBounds();
@@ -33,23 +32,23 @@ export default function Dashboard() {
   };
 
   const criticalityOptions = [
-    { value: null, label: 'All Incidents' },
+    { value: null, label: 'All' },
     { value: 'critical', label: 'Critical' },
     { value: 'major', label: 'Major' },
     { value: 'minor', label: 'Minor' },
   ];
 
   const stats = [
-    { label: 'Total Incidents', value: incidents.length, color: 'text-blue-600' },
+    { label: 'Total', value: incidents.length, color: 'text-neutral-700' },
     { 
       label: 'Critical', 
       value: incidents.filter(i => i.criticality === 'critical').length,
-      color: 'text-red-600' 
+      color: 'text-red-700' 
     },
     { 
       label: 'Major', 
       value: incidents.filter(i => i.criticality === 'major').length,
-      color: 'text-orange-600' 
+      color: 'text-orange-700' 
     },
   ];
 
@@ -61,22 +60,22 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header with filters */}
-      <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
+      {/* Header */}
+      <div className="bg-white border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">Real-Time Dashboard</h2>
+          <div className="flex items-center gap-6">
+            <h2 className="text-lg font-semibold text-neutral-900">Dashboard</h2>
             {stats.map((stat, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{stat.label}:</span>
+                <span className="text-sm text-neutral-600">{stat.label}:</span>
                 <span className={`font-semibold ${stat.color}`}>{stat.value}</span>
               </div>
             ))}
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5">
-              <Filter size={16} className="text-gray-500" />
+            <div className="flex items-center gap-2 bg-neutral-100 rounded px-3 py-1.5">
+              <Filter size={16} className="text-neutral-600" />
               <select
                 value={selectedCriticality || ''}
                 onChange={(e) => setSelectedCriticality(e.target.value || null)}
@@ -92,16 +91,16 @@ export default function Dashboard() {
 
             <input
               type="text"
-              placeholder="Search description or road"
+              placeholder="Search"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="text-sm bg-gray-100 rounded-lg px-3 py-1.5 outline-none"
+              className="text-sm bg-neutral-100 rounded px-3 py-1.5 outline-none w-40"
             />
 
             <button
               onClick={() => refetch()}
               disabled={isLoading}
-              className="btn-secondary flex items-center gap-2"
+              className="bg-neutral-800 text-white px-4 py-1.5 rounded text-sm hover:bg-neutral-700 flex items-center gap-2"
             >
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
               Refresh
@@ -124,22 +123,16 @@ export default function Dashboard() {
           />
           
           {isLoading && (
-            <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+            <div className="absolute top-4 right-4 bg-white rounded shadow-lg p-3 flex items-center gap-2">
               <LoadingSpinner size={16} />
-              <span className="text-sm">Loading incidents...</span>
+              <span className="text-sm text-neutral-700">Loading...</span>
             </div>
           )}
 
           {error && (
-            <div className="absolute top-4 right-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 max-w-xs">
-              <AlertCircle size={16} className="text-red-600" />
-              <span className="text-sm text-red-800">Failed to load incidents</span>
-            </div>
-          )}
-
-          {!isLoading && !error && incidents.length === 0 && (
-            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3">
-              <p className="text-sm text-gray-700">Zoom or pan the map to load incidents in view.</p>
+            <div className="absolute top-4 right-4 bg-red-50 border border-red-200 rounded p-3 flex items-center gap-2 max-w-xs">
+              <AlertCircle size={16} className="text-red-700" />
+              <span className="text-sm text-red-800">Error loading data</span>
             </div>
           )}
         </div>
@@ -147,9 +140,9 @@ export default function Dashboard() {
         {/* Sidebar */}
         <div className="w-96 bg-white border-l flex flex-col">
           <div className="p-4 border-b">
-            <h3 className="font-semibold">Active Incidents</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {filteredIncidents.length} incident{filteredIncidents.length !== 1 ? 's' : ''} in view
+            <h3 className="font-semibold text-neutral-900">Incidents</h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              {filteredIncidents.length} in view
             </p>
           </div>
 
@@ -158,58 +151,9 @@ export default function Dashboard() {
               incidents={filteredIncidents}
               onIncidentClick={setSelectedIncident}
             />
-
-            {!isLoading && filteredIncidents.length === 0 && (
-              <div className="p-4 text-sm text-gray-600">
-                No incidents match your filters. Try clearing search or changing severity.
-              </div>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Incident detail modal */}
-      {selectedIncident && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedIncident(null)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold mb-4">Incident Details</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-600">Type</label>
-                <p className="text-gray-900">{selectedIncident.type}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-600">Description</label>
-                <p className="text-gray-900">{selectedIncident.description}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Severity</label>
-                  <p className="text-gray-900 capitalize">{selectedIncident.criticality}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Start Time</label>
-                  <p className="text-gray-900">
-                    {new Date(selectedIncident.start_time).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setSelectedIncident(null)}
-              className="btn-primary w-full mt-6"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

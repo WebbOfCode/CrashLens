@@ -25,11 +25,11 @@ export function useTrafficFlow(bbox) {
   });
 }
 
-export function useAnalytics() {
+export function useAnalytics(bbox) {
   return useQuery({
-    queryKey: ['analytics'],
+    queryKey: ['analytics', bbox],
     queryFn: async () => {
-      const response = await apiService.getAnalyticsSummary();
+      const response = await apiService.getAnalyticsSummary(bbox);
       return response.data;
     },
     refetchInterval: 5 * 60 * 1000, // 5 minutes

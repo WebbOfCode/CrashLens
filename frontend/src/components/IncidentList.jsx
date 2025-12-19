@@ -46,10 +46,10 @@ export default function IncidentList({ incidents = [], onIncidentClick }) {
                 </p>
                 
                 <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                  {incident.road_name && (
+                  {(incident.location_name || incident.road_name) && (
                     <div className="flex items-center gap-1">
                       <MapPin size={12} />
-                      <span>{incident.road_name}</span>
+                      <span>{incident.location_name || incident.road_name}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-1">
